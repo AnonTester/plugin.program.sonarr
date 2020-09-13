@@ -91,17 +91,12 @@ def add_show(term=None):
     dialog.notification('Sonarr', 'Added the show: "%s"' % title, addonicon, 5000)
 
 
-
 def add_episode(episodeid):
     data = {
         'name': 'episodeSearch',
         'episodeIds': [episodeid],
     }
     snr.add_episode(data)
-
-
-
-
 
 
 def list_quality_profiles():
@@ -125,14 +120,15 @@ def list_quality_profiles():
 def list_shows(data):
     shows = []
     for show in data:
-        xbmc.log("Sonarr list_shows: " + str(show))
-        name = show['title'].encode('utf-8')
+        xbmc.log("Sonarr list_shows: " + str(show), xbmc.LOGINFO)
+        name = show['title']
         try:
-            thumb = host_url + show['images'][-1]['url'] + '&apikey={}'.format(api_key)
-            #banner = host_url + show['images'][1]['url'] + '&apikey={}'.format(api_key)
-            fanart = host_url + show['images'][0]['url'] + '&apikey={}'.format(api_key)
+            thumb = host_url + show['images'][1]['url'] + '&apikey={}'.format(api_key)
         except IndexError:
             thumb = ''
+        try:
+            fanart = host_url + show['images'][2]['url'] + '&apikey={}'.format(api_key)
+        except IndexError:
             fanart = ''
             xbmc.log("Sonarr list_shows: Error setting Artwork...")
         xbmc.log("THUMBB " + str(thumb))
@@ -142,8 +138,41 @@ def list_shows(data):
         file = 'seasons.json'
         file_path = get_appended_path(dir_show, file)
         write_json(file_path, seasons)
+        
+        totaleps=0
+        eps=0
+        for season in show['seasons']:
+            if season['monitored']==True:
+                totaleps+=int(season['statistics']['totalEpisodeCount'])
+                eps+=int(season['statistics']['episodeCount'])
+
+        # Get percentage
+        if vw_perc:
+            if totaleps > 0:
+                perc = int(eps/totaleps*100)
+            else:
+                perc = 100
+            if perc == 100:
+                perc = '[COLOR FF3576F9]{}%[/COLOR]'.format(perc)  # blue
+            elif 50 <= perc < 100:
+                perc = '[COLOR FFFA7544]{}%[/COLOR]'.format(perc)  # yellow
+            elif perc < 50:
+                perc = '[COLOR FFF7290A]{}%[/COLOR]'.format(perc)  # red
+            name += ' ' + str(perc)
+        # get episodes counter
+        if vw_total:
+            epi_count = str(eps)
+            epi_total_count = str(totaleps)
+            name += ' {}/{} '.format(epi_count, epi_total_count)
+        
+        if 'overview' in show:
+            plot = show['overview']
+        else:
+            plot = ''
+
+        name += ' [' + show['status'] + ']'
         shows.append({'name': name, 'url': str(show_id), 'mode': 'getShow', 'type': 'dir',
-                      'images': {'thumb': thumb, 'fanart': fanart}})
+            'images': {'thumb': thumb, 'fanart': fanart}, 'plot':str(plot)})
     add_entries(shows)
     xbmcplugin.endOfDirectory(pluginhandle)
 
@@ -250,10 +279,12 @@ def get_queue():
         xbmc.log("Sonarr get_queue: Timeleft: " + str(show['timeleft']))
         name = showname + " S" + str(show['episode']['seasonNumber']) + "E" + str(show['episode']['episodeNumber'])
         try:
-            thumb = show['series']['images'][2]['url']
-            fanart = show['series']['images'][0]['url']
+            thumb = show['series']['images'][1]['url']
         except IndexError:
             thumb = ''
+        try:
+            fanart = show['series']['images'][2]['url']
+        except IndexError:
             fanart = ''
             xbmc.log("Sonarr get_queue: Error setting Artwork...")
         totalsize = show['size'] * 1e-9
@@ -267,13 +298,17 @@ def get_queue():
         file = 'seasons.json'
         file_path = get_appended_path(dir_show, file)
         write_json(file_path, seasons)
+        if 'overview' in show:
+            plot = show['overview']
+        else:
+            plot = ''
+
         shows.append({'name': name, 'url': str(show_id), 'mode': 'getRoot', 'type': 'dir',
-                      'images': {'thumb': thumb, 'fanart': fanart}})
+                      'images': {'thumb': thumb, 'fanart': fanart}, 'plot': plot})
     if shows == []:
         shows.append({'name': 'No Current Downloads', 'url': '', 'mode': 'getRoot', 'type': 'dir'})
     add_entries(shows)
     xbmcplugin.endOfDirectory(pluginhandle)
-
 
 
 def get_show(show_id):

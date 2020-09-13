@@ -13,6 +13,7 @@ def add_entries(entries_list):
     is_folder = False
     for entry in entries_list:
         entry_name = entry['name']
+        plot = entry.get('plot')
         item = xbmcgui.ListItem(entry_name)
         item.setArt(entry.get('images'))
         entry_url = get_entry_url(entry)
@@ -22,7 +23,7 @@ def add_entries(entries_list):
             item.setProperty('IsPlayable', 'true')
             is_folder = False
         if entry['type'] == 'dir':
-            item.setInfo(type="video", infoLabels={'title': entry_name})
+            item.setInfo(type="video", infoLabels={'title': entry_name, 'plot': plot})
             is_folder = True
         entries.append([entry_url, item, is_folder])
     xbmcplugin.addDirectoryItems(pluginhandle, entries)
